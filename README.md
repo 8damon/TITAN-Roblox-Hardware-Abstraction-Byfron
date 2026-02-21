@@ -1,6 +1,7 @@
 # **ARES-RS** (Roblox)
 
 ![Rust](https://img.shields.io/badge/language-Rust-orange?logo=rust)
+[![CI](https://github.com/8damon/Roblox-ARES-Spoofer-Byfron/actions/workflows/ci.yml/badge.svg)](https://github.com/8damon/Roblox-ARES-Spoofer-Byfron/actions/workflows/ci.yml)
 ![Downloads](https://img.shields.io/badge/Downloads-4K%2B-green)
 [![Discord](https://img.shields.io/discord/1240608336005828668?label=TITAN%20Softworks&logo=discord&color=5865F2&style=flat)](https://discord.gg/yUWyvT9JyP)
 
