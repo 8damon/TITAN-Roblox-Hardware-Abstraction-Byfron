@@ -1,7 +1,7 @@
 # **ARES-RS** (Roblox)
 
 ![Rust](https://img.shields.io/badge/language-Rust-orange?logo=rust)
-![Downloads](https://img.shields.io/badge/Downloads-4K%2B-brightgreen)
+![Downloads](https://img.shields.io/badge/Downloads-4K%2B-green)
 [![Discord](https://img.shields.io/discord/1240608336005828668?label=TITAN%20Softworks&logo=discord&color=5865F2&style=flat)](https://discord.gg/yUWyvT9JyP)
 
 ## INTRODUCTION
@@ -118,13 +118,13 @@ You will need the [rust programming language](https://rustup.rs).
 Clone the repository;
 
 ```
-git clone https://github.com/8damon/ARES-Spoofer.git
+git clone https://github.com/8damon/Roblox-ARES-Spoofer-Byfron.git
 ```
 
 Enter it;
 
 ```
-cd \ARES-Spoofer\
+cd \Roblox-ARES-Spoofer-Byfron\
 ```
 
 Build EXE + DLL;
@@ -170,8 +170,8 @@ Contributions are welcome (bugfixes, refactors, docs, CI improvements).
 - Clone:
 
 ```
-git clone https://github.com/8damon/ARES-Spoofer.git
-cd ARES-Spoofer
+git clone https://github.com/8damon/Aoblox-ARES-Spoofer-Byfron.git
+cd Roblox-ARES-Spoofer-Byfron
 ```
 
 ### Before Opening A PR
