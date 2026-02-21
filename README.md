@@ -4,8 +4,6 @@
 ![Downloads](https://img.shields.io/badge/Downloads-4K%2B-brightgreen)
 [![Discord](https://img.shields.io/discord/1240608336005828668?label=TITAN%20Softworks&logo=discord&color=5865F2&style=flat)](https://discord.gg/yUWyvT9JyP)
 
-> This project will soon be migrated to the main https://github.com/8damon/Roblox-Hardware-Abstraction-Byfron repository.
-
 ## INTRODUCTION
 
 > **ARES-RS** is a successor to the older C++ version of **TITAN-Spoofer**, RS implements many of the limitations of the C++ version, such as configurability, universal bootstrapper support, auto-updating & proper error handling and logging.
