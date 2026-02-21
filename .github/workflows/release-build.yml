@@ -1,0 +1,30 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Build release
+        run: cargo build --release --bin aresrs --lib
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aresrs-release
+          path: |
+            target/x86_64-pc-windows-msvc/release/aresrs.exe
+            target/x86_64-pc-windows-msvc/release/ares.dll
+          if-no-files-found: error

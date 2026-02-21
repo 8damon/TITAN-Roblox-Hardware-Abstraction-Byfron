@@ -1,103 +1,207 @@
-# **TITAN Spoofer** (Roblox)
+# **ARES-RS** (Roblox)
 
+![Rust](https://img.shields.io/badge/language-Rust-orange?logo=rust)
+![Downloads](https://img.shields.io/badge/Downloads-4K%2B-brightgreen)
 [![Discord](https://img.shields.io/discord/1240608336005828668?label=TITAN%20Softworks&logo=discord&color=5865F2&style=flat)](https://discord.gg/yUWyvT9JyP)
+
+> This project will soon be migrated to the main https://github.com/8damon/Roblox-Hardware-Abstraction-Byfron repository.
+
+## INTRODUCTION
+
+> **ARES-RS** is a successor to the older C++ version of **TITAN-Spoofer**, RS implements many of the limitations of the C++ version, such as configurability, universal bootstrapper support, auto-updating & proper error handling and logging.
 
 # OVERVIEW
 
-[TITAN's](https://titansoftwork.net) Spoofer is designed to protect your Main/Alt accounts from Byfron's HWID tracking & Roblox's Ban API. To use this effectively, a VPN is essential.
+ARES-RS is designed to protect your Main/Alt accounts from Byfron's account detection system's & Roblox's BanAsync component. To use this effectively, a VPN is heavily recomended.
 
-The Spoofer prevents the other accounts on your PC from being banned when exploiting (Scenario: You exploit on alt, spoof, switch to main -> Only alt gets banned)
+For a much more detailed guide, join the **[Discord](https://hub.titansoftwork.com)** and read the guide provided.
 
-With Roblox integrating a ban API and combining Hyperion (Byfron's) detection mechanisms, exploit developers have begun offering paid spoofers. I've decided to give the community a **free, open-source** solution.  
+## HOW IT WORKS
 
-High-Level Overview of Roblox's System's in motion 
+The Spoofer modifies HWID's (Hardware-Identifier's) to disrupt Roblox's systems.
 
-![Diagram](./Images/TDiagram.png)
+More in-depth, the Spoofer adjusts to the way you configure it;
 
-### HOW IT WORKS
+```toml
+[runtime]
+run_on_startup = true # uses scheduled-task
+run_in_background = true # required for auto-spoofing
+spoof_on_file_run = false # cannot be true when ``run_in_background`` is true
+spoof_on_roblox_close = "silent" # OR ``notify``, notify will send a desktop notification
 
-The spoofer deletes Roblox & all relevant files then changes hardware identifiers (HWID's) that Roblox specifically checks. Then, (Assuming you have Bloxstrap or Fishstrap) will automatically re-install Roblox. This is done purely in usermode and any altered values will reset on PC restart.
+[spoofing]
+clean_and_reinstall = true # remove roblox files & reinstall
+spoof_connected_adapters = true # spoof Wi-Fi/Ethernet adapter you're connected to
 
-If you'd like any functionality stripped/removed the source is extremely clear and can be easily altered & recompiled for personal use.
-
-<br>
-
-# FEATURES
-- **Ban API/Byfron Fingerprinting Bypass** - Spoofer changes all values used in it's HWID check.
-- **Byfron HWID Ban Removal** – This'll get around the extremely rare HWID bans.
-- **Automated Roblox Reinstallation** – Uses **Bloxstrap/Fishstrap** for reinstallation, with **RobloxInstaller** as a fallback.  
-- **Antiban Guide** – Includes a full guide on avoiding bans and understanding how the Ban API & Byfron works, available in the **[TITAN Discord](https://hub.titansoftwork.net)**.  
-
-<br>
-
-# INSTALL & SETUP
-### DOWNLOAD
-For prebuilt binaries (.exe's), download the latest version from the Discord ``#spoofer`` channel **[TITAN Discord](https://hub.titansoftwork.net).**  
-
-### COMPILING REQUIREMENTS:
-- **Visual Studio** (Latest Version)  
-- **C++ Build Tools** (Install via Visual Studio Installer)  
-
-### BUILDING FROM SOURCE:
-1. **Clone the Repository**  
-    ```sh
-    git clone https://github.com/TITAN-Softwork-Solutions/Roblox-Spoofer-Byfron.git
-    cd TITAN-Spoofer
-    ```
-
-2. **Open the Solution File (`.sln`)**  
-    - Navigate to the cloned repository.  
-    - Open `TITAN Spoofer.sln` using **Visual Studio**.  
-
-3. **Build the Project**  
-    - Click **Build Solution**.  
-    - The compiled executable (`.exe`) will be located in the `/Release` directory.  
-
-<br>
-
-# API
-
-### TITAN DLL
-TITAN.dll provides these exports:
-```C++
-extern "C" __declspec(dllexport) void RunSpoofer()
-extern "C" __declspec(dllexport) void KillRoblox()
-extern "C" __declspec(dllexport) void SpoofMAC()
-extern "C" __declspec(dllexport) void CleanFS()
-extern "C" __declspec(dllexport) void SpoofRegistry()
-extern "C" __declspec(dllexport) void SpoofWMI()
-```
-See ``DLL/DLLmain.cpp`` for in-depth
-
-### TITAN.h
-
-#### **Example Usage**
-
-```cpp
-#include "TITAN.h"
-
-std::thread TitanThread = TitanSpoofer::run(true);
-
-TitanThread.join();
+[bootstrapper]
+use_bootstrapper = true # using a bootstrapper?
+path = 'C:\Users\Damon\AppData\Local\Bloxstrap\Bloxstrap.exe' # filepath to bootstrapper
+custom_cli_flag = "" # if your bootstrapper uses a custom flag (default -player)
+override_install = true # bootstrapper should be used to install roblox > web installer
+open_roblox_after_spoof = false # after spoofing should open roblox app
 ```
 
-### API REF
-#### FUNCTION `TitanSpoofer::run(bool logs)`
-- **Params:**
-  - `logs` (`true`/`false`): Enables or disables logging. If `false`, suppresses all `std::cout` output except critical errors.  
-- **Return Value:** A `std::thread` object executing the spoofing process asynchronously.  
+The spoofer works by tracking when Roblox instances are open, once closed if ``spoof_on_roblox_close`` is ``true``, then it will run an automated spoof & notify depending on if its set to ``notify`` or ``silent``.
+
+If ``spoof_on_roblox_close`` is ``false``, then the spoofer will only run when you run the ``aresrs.exe`` program.
+
+For ``spoof_on_roblox_close`` to work, ``run_in_background`` must be ``true``, same applies to ``run_on_startup``.
+
+---
+
+<details>
+<summary><span style="font-size: 1.3em; font-weight: 700;">HWIDs SPOOFED</span></summary>
+
+All of these values have been found checked by Roblox's Anti-Tamper (Hyperion/Byfron)
 
 
-### IMPORTANT NOTES
+### WMI (via `src/modules/WMI.rs`)
+
+| Class                       | Property     |
+| --------------------------- | ------------ |
+| Win32_ComputerSystemProduct | UUID         |
+| Win32_PhysicalMemory        | SerialNumber |
+| Win32_DiskDrive             | SerialNumber |
+| Win32_DiskDrive             | PNPDeviceID  |
+| Win32_DiskDrive             | DeviceID     |
+| Win32_BIOS                  | SerialNumber |
+| Win32_BaseBoard             | SerialNumber |
+| Win32_Processor             | ProcessorId  |
+| Win32_VideoController       | PNPDeviceID  |
+
+---
+
+### Registry Identifiers (via `src/modules/registry.rs`)
+
+| Path                                                            | Description         |
+| --------------------------------------------------------------- | ------------------- |
+| HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid                | Machine GUID        |
+| HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RegisteredOwner  | Registered owner    |
+| HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\LastLoggedOnUser | Last logged-on user |
+| HKLM\SYSTEM\CurrentControlSet\Enum\DISPLAY......*\EDID          | Monitor EDID blobs  |
+
+---
+
+### Network Adapter Identity (via `src/modules/adapters/*`)
+
+| Component      | Action                                             |
+| -------------- | -------------------------------------------------- |
+| Wired adapters | Sets `NetworkAddress`                              |
+| WiFi adapters  | Edits profile XML and applies via `WlanSetProfile` |
+
+---
+
+### Volume Serial Modification
+
+(via `src/modules/registry.rs` – `ArSpoofVolume`)
+
+| Filesystem | Action                                  |
+| ---------- | --------------------------------------- |
+| NTFS       | Writes new serial to volume boot sector |
+| FAT        | Writes new serial to volume boot sector |
+| FAT32      | Writes new serial to volume boot sector |
+
+</details>
+
+---
+
+## INSTALLATION
+
+For prebuilt binaries (.exe's) you can find them in the **[ARES Discord](https://hub.titansoftwork.com)**.
+
+*PDB's are provided.*
+
+### COMPILING
+
+I do not reccomend this unless you are a developer or a contributor
+
+You will need the [rust programming language](https://rustup.rs).
+
+Clone the repository;
+
+```
+git clone https://github.com/8damon/ARES-Spoofer.git
+```
+
+Enter it;
+
+```
+cd \ARES-Spoofer\
+```
+
+Build EXE + DLL;
+
+```
+cargo build --release --bin aresrs --lib
+```
+
+Find outputs in:
+
+- ``target\x86_64-pc-windows-msvc\release\aresrs.exe``
+- ``target\x86_64-pc-windows-msvc\release\ares.dll``
+
+---
+
+## IMPORTANT NOTES
+
 - The Spoofer does NOT unban you from specific games OR on-site bans (Eg; Roblox website bans)
 
-## SUPPORT
-For problems, open a support ticket via the **[TITAN Discord](https://hub.titansoftwork.com)**.  
+---
 
+### DEVELOPER API / DLL USAGE (C ABI)
+
+For DLL integration docs (exports, structs, callback usage, and call flow), see:
+
+- [`DLL_API.md`](./DLL_API.md)
+
+
+---
+
+## SUPPORT
+
+The Spoofer provides logs at ``%LOCALAPPDATA%\aresrs``, filter by modified-date & upload the relevant log file to said thread,
+
+Open a support thread via the **[TITAN Discord](https://hub.titansoftwork.com)**.
+
+## CONTRIBUTING
+
+Contributions are welcome (bugfixes, refactors, docs, CI improvements).
+
+### Setup
+- Install Rust: https://rustup.rs
+- Clone:
+
+```
+git clone https://github.com/8damon/ARES-Spoofer.git
+cd ARES-Spoofer
+```
+
+### Before Opening A PR
+- Format:
+
+```
+cargo fmt --all
+```
+
+- Verify build:
+
+```
+cargo check
+```
+
+### Guidelines
+- Keep changes scoped and explain intent in the PR description.
+- Prefer small, reviewable commits.
+- Add/extend tracing on non-obvious error paths.
+- Avoid introducing user-configurable update/exec sources.
 
 ## LICENSE
-Attribution-NonCommercial-NoDerivatives 4.0 International
-TITAN Softwork Solutions © 2024 CC BY-NC-ND 4.0
+
+ARES Spoofer RS is licensed under Apache 2.0 with the Commons Clause.
+
+- You may use, modify, and redistribute the software with attribution.
+- You may **not Sell** the software or any service whose value derives substantially from it.
+- Commercial use is prohibited unless you obtain explicit written permission from ARES Softwork Solutions.
 
 ## LEGAL
 This software is provided for **educational and research purposes only**. The use of this tool to **circumvent security protections** or violate the terms of service of **Roblox or any other platform** is strictly prohibited. The developers **do not endorse or condone** any illegal activities and assume no liability for misuse.

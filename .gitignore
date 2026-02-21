@@ -1,101 +1,14 @@
-# build artifacts
-*.obj
-*.o
-*.lo
-*.slo
-*.Plo
-*.a
-*.lib
-*.la
-*.so
-*.dylib
-*.dll
-*.exe
-*.out
-*.app
-*.i
-*.ii
-*.pdb
-*.ilk
-*.idb
-*.exp
+# Rust build artifacts
+/target/
+/debug/
+/release/
 
-# directories
-/.vs/
-/build/
-/Vault/
-Vault/
-/TITAN Spoofer/
-x64/
-x86/
-Debug/
-Release/
-dist/
-bin/
-lib/
-*.VC.db
-*.VC.opendb
-ipch/
+# Cargo lockfile (app-only workflow)
+Cargo.lock
+
+# Workspace / editor files
+*.code-workspace
 .idea/
 .vscode/
 
-# c/c++ specific files
-*.d
-*.dSYM/
-*.su
-*.gcno
-*.gcda
-*.gcov
-*.lst
-*.sbr
-*.swp
-*.tlog
-*.lastbuildstate
-
-# generated files
-*.manifest
-*.pfx
-*.rsp
-*.includecache
-*.timestamp
-
-# log files
-*.log
-*.tlog
-
-# temporary files
-*.tmp
-*.temp
-*.cache
-*.pyc
-*.pyo
-*.class
-
-# cmake and makefiles
-CMakeFiles/
-CMakeCache.txt
-Makefile
-cmake_install.cmake
-compile_commands.json
-CTestTestfile.cmake
-*.cmake
-
-# visual studio
-*.user
-*.suo
-*.ncb
-*.sdf
-*.opensdf
-*.log
-*.idb
-*.dir
-
-# backup and system files
-*.bak
-*.swp
-*.stackdump
-Thumbs.db
-*.DS_Store
-
-# git-specific files
-!.gitignore
+Signtool.ps1

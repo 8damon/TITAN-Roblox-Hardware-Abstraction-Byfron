@@ -1,0 +1,16 @@
+[build]
+target = "x86_64-pc-windows-msvc"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "target-cpu=native",
+
+    "-C", "link-arg=/INCREMENTAL:NO",
+    
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+
+    "-Z", "stack-protector=strong",
+
+    "-C", "target-feature=+crt-static"
+]

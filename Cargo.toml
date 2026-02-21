@@ -1,0 +1,80 @@
+[package]
+name = "aresrs"
+version = "0.1.0"
+authors = ["8damon"]
+edition = "2024"
+repository = "https://github.com/8damon/ARES-Spoofer-RS"
+keywords = ["roblox", "spoofer", "windows", "service", "etw"]
+license = "LICENSE"
+
+[lib]
+name = "ares"
+path = "dll/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "aresrs"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.101"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+toml = "1.0.2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["chrono", "env-filter"] }
+ureq = "3.2.0"
+
+windows = { version = "0.62.2", default-features = false, features = [
+    "std",
+    "Data_Xml_Dom",
+    "UI_Notifications",
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_NetworkManagement_WiFi",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_TaskScheduler",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_Etw",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_System_Kernel",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_ProcessStatus",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Registry",
+    "Win32_System_Rpc",
+    "Win32_System_Services",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Time",
+    "Win32_System_Variant",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_Wmi",
+    "Win32_UI",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+incremental = false
+debug = true
