@@ -133,3 +133,29 @@ pub fn gen_edid() -> String {
         buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]
     )
 }
+
+pub fn generate_random_serial(original: &str) -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    // Detect original format (numeric, alphanumeric, mixed)
+    let is_numeric = original.chars().all(|c| c.is_ascii_digit());
+    let is_uppercase = original.chars().any(|c| c.is_ascii_uppercase());
+
+    let charset = if is_numeric {
+        "0123456789"
+    } else if is_uppercase {
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    } else {
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    };
+
+    (0..original.len())
+        .map(|_| {
+            charset
+                .chars()
+                .nth(rng.gen_range(0..charset.len()))
+                .unwrap()
+        })
+        .collect()
+}

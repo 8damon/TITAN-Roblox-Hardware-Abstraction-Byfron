@@ -1,17 +1,14 @@
-use std::fs;
-use std::path::PathBuf;
-
-use tracing::{debug, info, warn};
-use windows::Win32::Foundation::{ERROR_NO_MORE_ITEMS, ERROR_SUCCESS};
-use windows::Win32::System::Registry::{
-    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_SET_VALUE, REG_EXPAND_SZ,
-    REG_MULTI_SZ, REG_SAM_FLAGS, REG_SZ, RegCloseKey, RegDeleteValueW, RegEnumValueW,
-    RegOpenKeyExW,
-};
-use windows::core::{PCWSTR, PWSTR, w};
-
 use super::delete::remove_file;
 use super::shell::get_user;
+use std::fs;
+use std::path::PathBuf;
+use tracing::{debug, info, warn};
+use windows::core::{PCWSTR, w};
+use winreg::enums::{
+    HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_SET_VALUE, REG_EXPAND_SZ, REG_MULTI_SZ,
+    REG_SZ,
+};
+use winreg::{HKEY, RegKey};
 
 const RUN_KEYS: &[(HKEY, PCWSTR)] = &[
     (
@@ -49,84 +46,44 @@ pub fn delete_roblox_startup_entry() {
 }
 
 fn remove_matching_run_values(root: HKEY, subkey: PCWSTR) {
-    let mut key = HKEY::default();
-    let status = unsafe {
-        RegOpenKeyExW(
-            root,
-            subkey,
-            None,
-            REG_SAM_FLAGS(KEY_READ.0 | KEY_SET_VALUE.0),
-            &mut key,
-        )
+    let hklm = RegKey::predef(root);
+    let subkey_string = match unsafe { subkey.to_string() } {
+        Ok(s) => s,
+        Err(_) => return,
     };
 
-    if status != ERROR_SUCCESS {
-        return;
-    }
+    let key = match hklm.open_subkey_with_flags(&subkey_string, KEY_READ | KEY_SET_VALUE) {
+        Ok(key) => key,
+        Err(_) => return,
+    };
 
-    let mut to_delete: Vec<Vec<u16>> = Vec::new();
-    let mut index = 0u32;
+    let mut to_delete = Vec::new();
 
-    loop {
-        let mut name_buf = vec![0u16; 512];
-        let mut name_len = name_buf.len() as u32;
-        let mut value_type = 0u32;
-        let mut data_buf = vec![0u8; 4096];
-        let mut data_len = data_buf.len() as u32;
-
-        let rc = unsafe {
-            RegEnumValueW(
-                key,
-                index,
-                Some(PWSTR(name_buf.as_mut_ptr())),
-                &mut name_len,
-                None,
-                Some(&mut value_type),
-                Some(data_buf.as_mut_ptr()),
-                Some(&mut data_len),
-            )
+    for value_result in key.enum_values() {
+        let value = match value_result {
+            Ok(value) => value,
+            Err(_) => continue,
         };
 
-        if rc == ERROR_NO_MORE_ITEMS {
-            break;
+        let (name, value_data) = value;
+        if value_mentions_roblox(value_data.vtype as u32, &value_data.bytes) {
+            to_delete.push(name);
         }
-
-        if rc != ERROR_SUCCESS {
-            index += 1;
-            continue;
-        }
-
-        data_buf.truncate(data_len as usize);
-
-        if value_mentions_roblox(value_type, &data_buf) {
-            let name = &name_buf[..name_len as usize];
-            let mut name_wide = name.to_vec();
-            name_wide.push(0);
-            to_delete.push(name_wide);
-        }
-
-        index += 1;
     }
 
     for name in to_delete {
-        let rc = unsafe { RegDeleteValueW(key, PCWSTR(name.as_ptr())) };
-        if rc == ERROR_SUCCESS {
-            let value_name = String::from_utf16_lossy(&name[..name.len().saturating_sub(1)]);
-            info!(%value_name, "Removed Roblox startup Run entry");
+        if let Err(e) = key.delete_value(&name) {
+            debug!(error = ?e, "Failed to remove startup Run entry");
         } else {
-            debug!(status = ?rc, "Failed to remove startup Run entry");
+            info!(%name, "Removed Roblox startup Run entry");
         }
-    }
-
-    unsafe {
-        let _ = RegCloseKey(key);
     }
 }
 
 fn value_mentions_roblox(value_type: u32, data: &[u8]) -> bool {
-    let text = if value_type == REG_SZ.0
-        || value_type == REG_EXPAND_SZ.0
-        || value_type == REG_MULTI_SZ.0
+    let text = if value_type == REG_SZ as u32
+        || value_type == REG_EXPAND_SZ as u32
+        || value_type == REG_MULTI_SZ as u32
     {
         decode_reg_utf16(data)
     } else {

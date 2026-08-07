@@ -10,8 +10,7 @@ use tracing_subscriber::fmt::writer::MakeWriter;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{EnvFilter, fmt};
 use windows::Win32::Foundation::{
-    CloseHandle, ERROR_NOT_ALL_ASSIGNED, ERROR_SUCCESS, GetLastError, LUID, SetLastError,
-    WIN32_ERROR,
+    CloseHandle, ERROR_NOT_ALL_ASSIGNED, GetLastError, LUID, SetLastError, WIN32_ERROR,
 };
 use windows::Win32::Security::{
     AdjustTokenPrivileges, GetSidSubAuthority, GetSidSubAuthorityCount, GetTokenInformation,
@@ -19,10 +18,6 @@ use windows::Win32::Security::{
     TOKEN_ELEVATION, TOKEN_ELEVATION_TYPE, TOKEN_MANDATORY_LABEL, TOKEN_PRIVILEGES, TOKEN_QUERY,
     TokenElevation, TokenElevationType, TokenElevationTypeDefault, TokenElevationTypeFull,
     TokenElevationTypeLimited, TokenIntegrityLevel, TokenPrivileges,
-};
-use windows::Win32::System::Registry::{
-    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, REG_DWORD,
-    REG_EXPAND_SZ, REG_SZ, REG_VALUE_TYPE, RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
 };
 use windows::Win32::System::SystemInformation::{GetLocalTime, GetSystemTime};
 use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
@@ -36,6 +31,8 @@ use windows::core::PCWSTR;
 use std::arch::x86::__cpuid;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::__cpuid;
+use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY};
+use winreg::{HKEY, RegKey};
 
 #[derive(Clone)]
 struct FileMakeWriter {
@@ -733,7 +730,8 @@ fn query_windows_version() -> Option<(u32, u32, u32)> {
 fn query_cpu_vendor() -> String {
     #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
     {
-        let leaf = unsafe { __cpuid(0) };
+        //let leaf = unsafe { __cpuid(0) };
+        let leaf = __cpuid(0);
         let mut bytes = Vec::with_capacity(12);
         bytes.extend_from_slice(&leaf.ebx.to_le_bytes());
         bytes.extend_from_slice(&leaf.edx.to_le_bytes());
@@ -781,108 +779,25 @@ fn compute_current_process_sha256() -> Option<String> {
 }
 
 fn read_reg_string(root: HKEY, key_path: &str, value_name: &str) -> Option<String> {
-    let mut h_key = HKEY::default();
-    let key_w: Vec<u16> = key_path.encode_utf16().chain(Some(0)).collect();
-    let value_w: Vec<u16> = value_name.encode_utf16().chain(Some(0)).collect();
+    let key = RegKey::predef(root)
+        .open_subkey_with_flags(key_path, KEY_READ | KEY_WOW64_64KEY)
+        .ok()?;
 
-    if unsafe {
-        RegOpenKeyExW(
-            root,
-            PCWSTR(key_w.as_ptr()),
-            None,
-            KEY_READ | KEY_WOW64_64KEY,
-            &mut h_key,
-        )
-    } != ERROR_SUCCESS
-    {
-        return None;
-    }
+    let value: String = key.get_value(value_name).ok()?;
 
-    let mut value_type = REG_VALUE_TYPE(0);
-    let mut byte_len = 0u32;
-    let len_rc = unsafe {
-        RegQueryValueExW(
-            h_key,
-            PCWSTR(value_w.as_ptr()),
-            None,
-            Some(&mut value_type),
-            None,
-            Some(&mut byte_len),
-        )
-    };
-    if len_rc != ERROR_SUCCESS
-        || byte_len == 0
-        || !(value_type == REG_SZ || value_type == REG_EXPAND_SZ)
-    {
-        unsafe {
-            let _ = RegCloseKey(h_key);
-        }
-        return None;
+    if value.trim().is_empty() {
+        None
+    } else {
+        Some(value)
     }
-
-    let mut buf = vec![0u8; byte_len as usize];
-    let val_rc = unsafe {
-        RegQueryValueExW(
-            h_key,
-            PCWSTR(value_w.as_ptr()),
-            None,
-            Some(&mut value_type),
-            Some(buf.as_mut_ptr()),
-            Some(&mut byte_len),
-        )
-    };
-    unsafe {
-        let _ = RegCloseKey(h_key);
-    }
-    if val_rc != ERROR_SUCCESS || byte_len < 2 {
-        return None;
-    }
-
-    let u16_len = (byte_len as usize) / 2;
-    let wide = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u16, u16_len) };
-    let nul = wide.iter().position(|&c| c == 0).unwrap_or(wide.len());
-    let value = String::from_utf16_lossy(&wide[..nul]).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
 }
 
 fn read_reg_dword(root: HKEY, key_path: &str, value_name: &str) -> Option<u32> {
-    let mut h_key = HKEY::default();
-    let key_w: Vec<u16> = key_path.encode_utf16().chain(Some(0)).collect();
-    let value_w: Vec<u16> = value_name.encode_utf16().chain(Some(0)).collect();
+    let key = RegKey::predef(root)
+        .open_subkey_with_flags(key_path, KEY_READ | KEY_WOW64_64KEY)
+        .ok()?;
 
-    if unsafe {
-        RegOpenKeyExW(
-            root,
-            PCWSTR(key_w.as_ptr()),
-            None,
-            KEY_READ | KEY_WOW64_64KEY,
-            &mut h_key,
-        )
-    } != ERROR_SUCCESS
-    {
-        return None;
-    }
+    let value: u32 = key.get_value(value_name).ok()?;
 
-    let mut value_type = REG_VALUE_TYPE(0);
-    let mut data = 0u32;
-    let mut data_len = std::mem::size_of::<u32>() as u32;
-    let rc = unsafe {
-        RegQueryValueExW(
-            h_key,
-            PCWSTR(value_w.as_ptr()),
-            None,
-            Some(&mut value_type),
-            Some((&mut data as *mut u32).cast::<u8>()),
-            Some(&mut data_len),
-        )
-    };
-    unsafe {
-        let _ = RegCloseKey(h_key);
-    }
-
-    if rc == ERROR_SUCCESS && value_type == REG_DWORD {
-        Some(data)
-    } else {
-        None
-    }
+    Some(value)
 }

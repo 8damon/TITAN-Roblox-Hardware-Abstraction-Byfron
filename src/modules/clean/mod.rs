@@ -1,4 +1,5 @@
 pub mod delete;
+mod event_logs;
 pub mod kill;
 pub mod referent;
 pub mod shell;
@@ -7,13 +8,13 @@ pub mod startup;
 use std::io;
 use std::path::PathBuf;
 
+use crate::modules::clean::event_logs::EventLogCleaning;
+use crate::modules::clean::kill::ArKillProcess;
 use delete::*;
 use referent::*;
 use shell::*;
 use startup::delete_roblox_startup_entry;
 use tracing::{error, info};
-
-use crate::modules::clean::kill::ArKillProcess;
 
 pub struct TraceCleaner;
 
@@ -122,6 +123,16 @@ fn clean_rbx(use_bootstrapper: bool, bootstrapper_name: Option<&str>) -> io::Res
         &roblox_local.join("AnalysticsSettings.xml"),
         "GoogleAnalyticsConfiguration",
     )?;
+
+    // windows event log deletion
+    match EventLogCleaning::clean_all_traces() {
+        Ok(count) => {
+            info!("Cleared {} event log(s)", count);
+        }
+        Err(e) => {
+            error!("Event log cleanup failed: {}", e);
+        }
+    }
 
     Ok(())
 }

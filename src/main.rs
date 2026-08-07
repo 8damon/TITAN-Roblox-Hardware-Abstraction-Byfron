@@ -55,7 +55,7 @@ unsafe extern "system" fn TSRS_CALLBACK(_hinst: HINSTANCE, reason: u32, _reserve
 static TLS_ENTRY: unsafe extern "system" fn(HINSTANCE, u32, *mut c_void) = TSRS_CALLBACK;
 
 fn main() {
-    components::tracing::ArSetConsoleTracingMuted(true);
+    components::tracing::ArSetConsoleTracingMuted(false);
     ArSetConsoleTracingAnsi(true);
 
     ArEnsureWorkingDirectoryAtExeDir();
@@ -73,6 +73,17 @@ fn main() {
     };
 
     ArRunConfiguredEngine(cfg);
+    let stdin = std::io::stdin();
+    let mut line = String::new();
+    if let Ok(_) = stdin.read_line(&mut line) {
+        if let Some(ch) = line.chars().next() {
+            println!("Read character: {}", ch);
+        } else {
+            eprintln!("No characters in input");
+        }
+    } else {
+        eprintln!("Error reading input");
+    }
 }
 
 fn ArEnsureWorkingDirectoryAtExeDir() {
