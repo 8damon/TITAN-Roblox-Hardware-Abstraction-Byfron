@@ -1,5 +1,5 @@
 use super::adapter::{enumerate_adapters, enumerate_connected_wifi_ethernet_guids};
-use super::registry::{find_adapter_registry_path, set_network_address};
+use super::net_registry::{find_adapter_registry_path, set_network_address};
 use super::util::{bounce_adapter, gen_random_mac};
 
 use tracing::{debug, error, info, warn};

@@ -1,4 +1,3 @@
-pub mod WMI;
 pub mod registry;
 
 pub mod adapters;
@@ -7,3 +6,4 @@ pub mod install;
 pub mod post_check;
 
 pub mod PE;
+pub mod hwid;

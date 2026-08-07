@@ -5,12 +5,12 @@ mod types;
 
 use crate::components::update::{ArCheckForUpdates, UpdateResult};
 use crate::modules::{
-    WMI::ArSpoofWMI,
     adapters::{
         ArCaptureActiveNetworkSnapshot, ArLogNetworkPreflight, ArSpoofMAC,
         ArVerifyNetworkPreservedAfterMacSpoof,
     },
     clean::TraceCleaner,
+    hwid::wmi::ArSpoofWMI,
     install::{ArInstall, InstallLaunch},
     post_check::{ArCaptureSpoofState, ArVerifySpoofApplied},
     registry::ArSpoofRegistry,
@@ -26,6 +26,8 @@ use crate::{
     setup::setup::{ArConfig, SpoofMode},
 };
 
+use crate::modules::hwid::bios::ArSpoofBIOS;
+use crate::modules::hwid::motherboard::ArSpoofMotherboard;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
@@ -254,19 +256,29 @@ impl TrsEngine {
         let pipeline_started = Instant::now();
         let pre_state = ArCaptureSpoofState();
 
+        debug!("Spoof phase: BIOS");
+        ArSpoofBIOS();
+
+        debug!("Spoof phase: Motherboard");
+        ArSpoofMotherboard();
+
         debug!("Spoof phase: WMI");
         ArSpoofWMI();
+
         debug!("Spoof phase: registry");
         ArSpoofRegistry();
+
         let pre_mac_network = ArCaptureActiveNetworkSnapshot();
         debug!(
             spoof_connected_adapters = self.cfg.spoofing.spoof_connected_adapters,
             "Spoof phase: MAC"
         );
         ArSpoofMAC(self.cfg.spoofing.spoof_connected_adapters);
+
         if let Some(pre) = pre_mac_network.as_ref() {
             let _ = ArVerifyNetworkPreservedAfterMacSpoof(pre, Self::NETWORK_VERIFY_WAIT);
         }
+
         debug!("Spoof phase: verification");
         let report = ArVerifySpoofApplied(&pre_state);
         info!(

@@ -1,12 +1,6 @@
-use std::collections::HashMap;
-use windows::Win32::Foundation::ERROR_SUCCESS;
-use windows::Win32::System::Registry::{
-    HKEY, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, REG_EXPAND_SZ, REG_SZ, REG_VALUE_TYPE,
-    RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
-};
-use windows::core::PCWSTR;
-
 use crate::modules::adapters::ArSnapshotMacTargets;
+use std::collections::HashMap;
+use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY};
 
 pub struct SpoofStateSnapshot {
     machine_guid: Option<String>,
@@ -63,74 +57,18 @@ pub fn ArVerifySpoofApplied(before: &SpoofStateSnapshot) -> PostCheckReport {
 }
 
 fn read_machine_guid() -> Option<String> {
-    let mut h_key = HKEY::default();
-    let path = wide_null("SOFTWARE\\Microsoft\\Cryptography");
+    let hklm = winreg::RegKey::predef(HKEY_LOCAL_MACHINE);
+    let path = "SOFTWARE\\Microsoft\\Cryptography";
 
-    if unsafe {
-        RegOpenKeyExW(
-            HKEY_LOCAL_MACHINE,
-            PCWSTR(path.as_ptr()),
-            None,
-            KEY_READ | KEY_WOW64_64KEY,
-            &mut h_key,
-        )
-    } != ERROR_SUCCESS
-    {
-        return None;
+    let key = hklm
+        .open_subkey_with_flags(path, KEY_READ | KEY_WOW64_64KEY)
+        .ok()?;
+
+    let value: String = key.get_value("MachineGuid").ok()?;
+
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.trim().to_string())
     }
-
-    let value_name = wide_null("MachineGuid");
-    let mut value_type = REG_VALUE_TYPE(0);
-    let mut byte_len = 0u32;
-
-    let rc_len = unsafe {
-        RegQueryValueExW(
-            h_key,
-            PCWSTR(value_name.as_ptr()),
-            None,
-            Some(&mut value_type),
-            None,
-            Some(&mut byte_len),
-        )
-    };
-
-    if rc_len != ERROR_SUCCESS
-        || byte_len == 0
-        || !(value_type == REG_SZ || value_type == REG_EXPAND_SZ)
-    {
-        unsafe {
-            let _ = RegCloseKey(h_key);
-        }
-        return None;
-    }
-
-    let mut buf = vec![0u8; byte_len as usize];
-    let rc_val = unsafe {
-        RegQueryValueExW(
-            h_key,
-            PCWSTR(value_name.as_ptr()),
-            None,
-            Some(&mut value_type),
-            Some(buf.as_mut_ptr()),
-            Some(&mut byte_len),
-        )
-    };
-
-    unsafe {
-        let _ = RegCloseKey(h_key);
-    }
-
-    if rc_val != ERROR_SUCCESS || byte_len < 2 {
-        return None;
-    }
-
-    let u16_len = (byte_len as usize) / 2;
-    let wide = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u16, u16_len) };
-    let nul = wide.iter().position(|&c| c == 0).unwrap_or(wide.len());
-    let value = String::from_utf16_lossy(&wide[..nul]).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
-}
-
-fn wide_null(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(Some(0)).collect()
 }

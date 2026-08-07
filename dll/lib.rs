@@ -197,7 +197,11 @@ pub extern "C" fn ArRunTraceCleaner(use_bootstrapper: i32, bootstrapper_path: *c
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ArSpoofWMI() -> i32 {
-    if modules::WMI::ArSpoofWMI() { 1 } else { 0 }
+    if modules::hwid::wmi::ArSpoofWMI() {
+        1
+    } else {
+        0
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -311,7 +315,7 @@ fn run_spoof_pipeline_internal(
         None
     };
 
-    let _ = modules::WMI::ArSpoofWMI();
+    let _ = modules::hwid::wmi::ArSpoofWMI();
     let _ = modules::registry::ArSpoofRegistry();
     modules::adapters::ArSpoofMAC(true);
 

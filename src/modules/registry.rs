@@ -1,73 +1,67 @@
-// registry.rs
+// net_registry
 
-use std::ptr;
+use std::borrow::Cow;
+use std::ffi::OsString;
 
-use crate::components::generator::{gen_edid, gen_guid, gen_users};
+use crate::components::generator::gen_users;
 use rand::{RngCore, thread_rng};
 use regex::Regex;
 use tracing::{error, info, warn};
-use windows::Win32::Foundation::{
-    CloseHandle, ERROR_SUCCESS, GENERIC_READ, GENERIC_WRITE, WIN32_ERROR,
-};
+use windows::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, WIN32_ERROR};
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, DELETE, FILE_ATTRIBUTE_NORMAL, FILE_BEGIN, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_BEGIN, FILE_SHARE_READ, FILE_SHARE_WRITE,
     GetLogicalDriveStringsW, OPEN_EXISTING, ReadFile, SetFilePointer, WriteFile,
 };
 use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::System::Ioctl::{
     FSCTL_DISMOUNT_VOLUME, FSCTL_LOCK_VOLUME, FSCTL_UNLOCK_VOLUME,
 };
-use windows::Win32::System::Registry::{
-    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_ENUMERATE_SUB_KEYS, KEY_QUERY_VALUE, KEY_READ,
-    KEY_SET_VALUE, KEY_WRITE, REG_BINARY, REG_SAM_FLAGS, REG_SZ, REG_VALUE_TYPE, RegCloseKey,
-    RegDeleteTreeW, RegEnumKeyExW, RegOpenKeyExW, RegQueryInfoKeyW, RegSetValueExW,
+use windows::core::PCWSTR;
+use winreg::enums::{
+    DELETE, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_ENUMERATE_SUB_KEYS, KEY_QUERY_VALUE,
+    KEY_READ, KEY_SET_VALUE, KEY_WRITE, REG_BINARY,
 };
-use windows::core::{PCWSTR, PWSTR, w};
+use winreg::{RegKey, RegValue};
 
-struct RegKey(HKEY);
+#[derive(Debug)]
+pub struct HyperionTracking;
 
-impl RegKey {
-    fn open(path: PCWSTR, sam: REG_SAM_FLAGS) -> Result<Self, WIN32_ERROR> {
-        let mut h = HKEY(ptr::null_mut());
-        let status = unsafe { RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, None, sam, &mut h) };
-        if status == ERROR_SUCCESS {
-            Ok(RegKey(h))
-        } else {
-            Err(status)
+impl HyperionTracking {
+    pub fn delete_systemreg_tracking() -> Result<bool, String> {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let roblox_path = r"Software\Roblox";
+
+        match hkcu.open_subkey_with_flags(roblox_path, KEY_WRITE) {
+            Ok(roblox_key) => {
+                // Delete the null-terminated SystemReg value
+                match roblox_key.delete_value("\0SystemReg") {
+                    Ok(_) => Ok(true),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                    Err(e) => Err(format!("Failed to delete SystemReg: {}", e)),
+                }
+            }
+            Err(e) => Err(format!("Cannot access Roblox registry: {}", e)),
         }
     }
-    fn open_current_user(path: PCWSTR, sam: REG_SAM_FLAGS) -> Result<Self, WIN32_ERROR> {
-        let mut h = HKEY(ptr::null_mut());
-        let status = unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, path, None, sam, &mut h) };
-        if status == ERROR_SUCCESS {
-            Ok(RegKey(h))
-        } else {
-            Err(status)
-        }
-    }
+    pub fn clean_roblox_fingerprinting() -> Result<u32, String> {
+        let mut deleted = 0;
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
-    fn set_value(
-        &self,
-        name: PCWSTR,
-        kind: REG_VALUE_TYPE,
-        data: &[u8],
-    ) -> Result<(), WIN32_ERROR> {
-        let status = unsafe { RegSetValueExW(self.0, name, None, kind, Some(data)) };
-        if status == ERROR_SUCCESS {
-            Ok(())
-        } else {
-            Err(status)
-        }
-    }
-}
+        let tracking_values = vec![
+            (r"Software\Roblox", "ClientID"),
+            (r"Software\Roblox", "DeviceId"),
+            (r"Software\Roblox", "ServerTrackingId"),
+        ];
 
-impl Drop for RegKey {
-    fn drop(&mut self) {
-        if !self.0.is_invalid() {
-            unsafe {
-                let _ = RegCloseKey(self.0);
+        for (path, value) in tracking_values {
+            if let Ok(key) = hkcu.open_subkey_with_flags(path, KEY_WRITE) {
+                if key.delete_value(value).is_ok() {
+                    deleted += 1;
+                }
             }
         }
+
+        Ok(deleted)
     }
 }
 
@@ -91,16 +85,81 @@ pub fn ArSpoofRegistry() -> bool {
         overall_success = false;
     }
 
-    match spoof_edid() {
+    let mut total_spoofed = 0;
+    match EdidSpoofing::spoof_all_monitors(true) {
         Ok(count) => {
             if count > 0 {
-                info!("Spoofed {} EDID entrie(s)", count);
+                info!(
+                    "Method 1: Spoofed {} EDID entry/entries (serial only)",
+                    count
+                );
+                total_spoofed += count;
             } else {
-                warn!("No EDID entries were found or modified");
+                warn!("Method 1: No EDID entries were found or modified");
             }
         }
         Err(e) => {
-            error!("EDID spoofing failed | status={:?}", e);
+            error!("Method 1: EDID spoofing failed | status={:?}", e);
+            overall_success = false;
+        }
+    };
+
+    match EdidSpoofing::spoof_all_monitors(false) {
+        Ok(count) => {
+            if count > 0 {
+                info!("Method 2: Spoofed {} EDID entry/entries (full EDID)", count);
+                total_spoofed += count;
+            } else {
+                warn!("Method 2: No EDID entries were found or modified");
+            }
+        }
+        Err(e) => {
+            error!("Method 2: EDID spoofing failed | status={:?}", e);
+            overall_success = false;
+        }
+    };
+
+    match EdidSpoofing::spoof_all_monitors_alternative() {
+        Ok(count) => {
+            if count > 0 {
+                info!(
+                    "Method 3: Spoofed {} EDID entry/entries (alternative method)",
+                    count
+                );
+                total_spoofed += count;
+            } else {
+                warn!("Method 3: No EDID entries were found or modified");
+            }
+        }
+        Err(e) => {
+            error!("Method 3: EDID spoofing failed | status={:?}", e);
+            overall_success = false;
+        }
+    };
+
+    if total_spoofed > 0 {
+        info!("Total EDID entries spoofed: {}", total_spoofed);
+    } else if overall_success {
+        warn!("No EDID entries were found in any method");
+    } else {
+        error!("All EDID spoofing methods failed");
+    }
+
+    match HyperionTracking::delete_systemreg_tracking() {
+        Ok(true) => match HyperionTracking::clean_roblox_fingerprinting() {
+            Ok(count) => {
+                info!("Deleted {} Roblox tracking values", count);
+            }
+            Err(e) => {
+                error!("Partial cleanup: {}", e);
+                overall_success = false;
+            }
+        },
+        Err(e) => {
+            error!("Hyperion cleanup failed: {}", e);
+            overall_success = false;
+        }
+        _ => {
             overall_success = false;
         }
     }
@@ -116,15 +175,12 @@ pub fn ArSpoofRegistry() -> bool {
     overall_success
 }
 
-fn spoof_machine_guid() -> Result<(), WIN32_ERROR> {
-    let path = w!("SOFTWARE\\Microsoft\\Cryptography");
-    let key = RegKey::open(PCWSTR(path.as_ptr()), KEY_SET_VALUE)?;
+fn spoof_machine_guid() -> Result<(), Box<dyn std::error::Error>> {
+    let key = RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey_with_flags(r"SOFTWARE\Microsoft\Cryptography", KEY_SET_VALUE)?;
 
-    let new_guid = gen_guid();
-    let wide = new_guid.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-    let bytes = unsafe { std::slice::from_raw_parts(wide.as_ptr() as *const u8, wide.len() * 2) };
-
-    key.set_value(w!("MachineGuid"), REG_SZ, bytes)?;
+    let new_guid = uuid::Uuid::new_v4().to_string();
+    key.set_value("MachineGuid", &new_guid)?;
 
     info!("MachineGUID spoofed | {}", new_guid);
     Ok(())
@@ -134,198 +190,228 @@ fn spoof_registered_user() -> Result<(), WIN32_ERROR> {
     let user = gen_users();
     let targets = [
         (
-            w!("SOFTWARE\\Microsoft\\Windows\\CurrentVersion"),
-            w!("RegisteredOwner"),
+            HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion",
+            "RegisteredOwner",
         ),
         (
-            w!("SOFTWARE\\Microsoft\\Windows\\CurrentVersion"),
-            w!("LastLoggedOnUser"),
+            HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion",
+            "LastLoggedOnUser",
         ),
     ];
 
-    for (path, value_name) in targets {
-        let key = match RegKey::open(PCWSTR(path.as_ptr()), KEY_SET_VALUE) {
+    for (root, path, value_name) in targets {
+        let key = match RegKey::predef(root).open_subkey_with_flags(path, KEY_SET_VALUE) {
             Ok(k) => k,
             Err(e) => {
-                warn!("Cannot open registry key | {:?} → {:?}", value_name, e);
+                warn!("Cannot open registry key | {} → {:?}", value_name, e);
                 continue;
             }
         };
 
-        let wide = user.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-        let bytes =
-            unsafe { std::slice::from_raw_parts(wide.as_ptr() as *const u8, wide.len() * 2) };
-
-        if let Err(e) = key.set_value(value_name, REG_SZ, bytes) {
-            warn!("Failed to set value | {:?} → {:?}", value_name, e);
+        if let Err(e) = key.set_value(value_name, &user) {
+            warn!("Failed to set value | {} → {:?}", value_name, e);
             continue;
         }
 
-        info!("User value spoofed | {:?} → {}", value_name, user);
+        info!("User value spoofed | {} → {}", value_name, user);
     }
 
     Ok(())
 }
 
-fn spoof_edid() -> Result<usize, WIN32_ERROR> {
-    let display_path = w!("SYSTEM\\CurrentControlSet\\Enum\\DISPLAY");
-    let root = RegKey::open(PCWSTR(display_path.as_ptr()), KEY_READ | KEY_WRITE)?;
+pub struct EdidSpoofing;
 
-    let mut subkey_count = 0u32;
-    let mut max_subkey_len = 0u32;
-    unsafe {
-        let _ = RegQueryInfoKeyW(
-            root.0,
-            None,
-            None,
-            None,
-            Some(&mut subkey_count),
-            Some(&mut max_subkey_len),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
+impl EdidSpoofing {
+    const EDID_SERIAL_OFFSET: usize = 8;
+    const EDID_LENGTH: usize = 128;
+    const EDID_CHECKSUM_OFFSET: usize = 127;
+
+    pub fn randomize_edid_serial(edid: &mut [u8]) -> Result<(), String> {
+        if edid.len() < Self::EDID_LENGTH {
+            return Err("EDID buffer too small".to_string());
+        }
+
+        let random_serial: u32 = rand::random();
+        edid[Self::EDID_SERIAL_OFFSET..Self::EDID_SERIAL_OFFSET + 4]
+            .copy_from_slice(&random_serial.to_le_bytes());
+
+        Self::recalculate_checksum(edid)?;
+
+        Ok(())
     }
 
-    let mut spoofed_count = 0;
+    pub fn generate_random_edid() -> [u8; 128] {
+        let mut edid = [0u8; 128];
+        thread_rng().fill_bytes(&mut edid);
+        if let Err(e) = Self::recalculate_checksum(&mut edid) {
+            warn!("Failed to recalculate checksum: {}", e);
+        }
+        edid
+    }
 
-    for i in 0..subkey_count {
-        let mut name_len = max_subkey_len + 1;
-        let mut name_buf = vec![0u16; name_len as usize];
-
-        if unsafe {
-            RegEnumKeyExW(
-                root.0,
-                i,
-                Some(PWSTR(name_buf.as_mut_ptr())),
-                &mut name_len,
-                None,
-                None,
-                None,
-                None,
-            )
-        } != ERROR_SUCCESS
-        {
-            continue;
+    fn recalculate_checksum(edid: &mut [u8]) -> Result<(), String> {
+        if edid.len() < Self::EDID_LENGTH {
+            return Err("EDID buffer too small".to_string());
         }
 
-        let vendor = String::from_utf16_lossy(&name_buf[..name_len as usize]).to_string();
+        let sum: u32 = edid[..Self::EDID_CHECKSUM_OFFSET]
+            .iter()
+            .map(|&b| b as u32)
+            .sum();
 
-        let mut device_count = 0u32;
-        let mut max_device_len = 0u32;
+        let checksum = ((256 - (sum % 256)) % 256) as u8;
+        edid[Self::EDID_CHECKSUM_OFFSET] = checksum;
 
-        let device_base = format!("{}\\{}", "SYSTEM\\CurrentControlSet\\Enum\\DISPLAY", vendor);
-        let device_wide = device_base
-            .encode_utf16()
-            .chain(Some(0))
-            .collect::<Vec<_>>();
+        Ok(())
+    }
 
-        let device_root = match RegKey::open(PCWSTR(device_wide.as_ptr()), KEY_READ | KEY_WRITE) {
-            Ok(k) => k,
-            Err(_) => continue,
-        };
-
-        unsafe {
-            let _ = RegQueryInfoKeyW(
-                device_root.0,
-                None,
-                None,
-                None,
-                Some(&mut device_count),
-                Some(&mut max_device_len),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            );
+    /*
+    pub fn is_edid_valid(edid: &[u8]) -> bool {
+        if edid.len() < Self::EDID_LENGTH {
+            return false;
         }
 
-        for j in 0..device_count {
-            let mut len = max_device_len + 1;
-            let mut buf = vec![0u16; len as usize];
+        let sum: u32 = edid[..Self::EDID_CHECKSUM_OFFSET]
+            .iter()
+            .map(|&b| b as u32)
+            .sum();
 
-            if unsafe {
-                RegEnumKeyExW(
-                    device_root.0,
-                    j,
-                    Some(PWSTR(buf.as_mut_ptr())),
-                    &mut len,
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-            } != ERROR_SUCCESS
-            {
-                continue;
+        (sum % 256) == 0
+    }
+    */
+
+    pub fn spoof_all_monitors(randomize_serial: bool) -> Result<usize, String> {
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let display_path = r"SYSTEM\CurrentControlSet\Enum\DISPLAY";
+        let mut modified_count = 0;
+
+        match hklm.open_subkey(display_path) {
+            Ok(display_key) => {
+                for monitor in display_key.enum_keys().flatten() {
+                    let monitor_path = format!("{}\\{}", display_path, monitor);
+
+                    if let Ok(monitor_key) = hklm.open_subkey_with_flags(&monitor_path, KEY_READ) {
+                        for device in monitor_key.enum_keys().flatten() {
+                            let device_path = format!("{}\\{}", monitor_path, device);
+
+                            if let Ok(device_key) =
+                                hklm.open_subkey_with_flags(&device_path, KEY_WRITE)
+                            {
+                                if let Ok(edid_data) = device_key.get_raw_value("EDID") {
+                                    let mut edid_bytes = edid_data.bytes.to_vec();
+
+                                    let success = if randomize_serial {
+                                        Self::randomize_edid_serial(&mut edid_bytes).is_ok()
+                                    } else {
+                                        let new_edid = Self::generate_random_edid();
+                                        edid_bytes.copy_from_slice(&new_edid);
+                                        true
+                                    };
+
+                                    if success {
+                                        let edid_value = RegValue {
+                                            bytes: Cow::Owned(edid_bytes),
+                                            vtype: REG_BINARY,
+                                        };
+
+                                        if device_key.set_raw_value("EDID", &edid_value).is_ok() {
+                                            modified_count += 1;
+                                            info!("EDID spoofed for {}", device);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            Err(e) => return Err(format!("Cannot access display registry: {}", e)),
+        }
 
-            let instance = String::from_utf16_lossy(&buf[..len as usize]).to_string();
+        Ok(modified_count)
+    }
+    pub fn spoof_all_monitors_alternative() -> Result<usize, Box<dyn std::error::Error>> {
+        let display_path = r"SYSTEM\CurrentControlSet\Enum\DISPLAY";
+        let root = RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey_with_flags(display_path, KEY_READ | KEY_WRITE)?;
 
-            let locations = [
-                format!("{}\\{}", device_base, instance),
-                format!("{}\\{}\\Device Parameters", device_base, instance),
-                format!("{}\\{}\\Control\\Device Parameters", device_base, instance),
-                format!("{}\\{}\\Monitor\\Device Parameters", device_base, instance),
-            ];
+        let mut spoofed_count = 0;
 
-            for loc in locations {
-                let wide_loc = loc.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+        for vendor_result in root.enum_keys() {
+            let vendor = vendor_result?;
+            let device_base = format!(r"SYSTEM\CurrentControlSet\Enum\DISPLAY\{}", vendor);
 
-                let key = match RegKey::open(PCWSTR(wide_loc.as_ptr()), KEY_READ | KEY_WRITE) {
-                    Ok(k) => k,
-                    Err(_) => continue,
-                };
+            if let Ok(device_root) = RegKey::predef(HKEY_LOCAL_MACHINE)
+                .open_subkey_with_flags(&device_base, KEY_READ | KEY_WRITE)
+            {
+                for instance_result in device_root.enum_keys() {
+                    let instance = instance_result?;
+                    let full_path = format!(r"{}\{}", device_base, instance);
 
-                let mut edid = [0u8; 128];
-                thread_rng().fill_bytes(&mut edid);
+                    let locations = [
+                        format!(r"{}\Device Parameters", full_path),
+                        format!(r"{}\Control\Device Parameters", full_path),
+                        format!(r"{}\Monitor\Device Parameters", full_path),
+                    ];
 
-                if key.set_value(w!("EDID"), REG_BINARY, &edid).is_ok() {
-                    let new_id = gen_edid();
-                    info!("EDID spoofed | {} → {}", instance, new_id);
-                    spoofed_count += 1;
+                    for loc in locations {
+                        if let Ok(key) = RegKey::predef(HKEY_LOCAL_MACHINE)
+                            .open_subkey_with_flags(&loc, KEY_READ | KEY_WRITE)
+                        {
+                            let edid = Self::generate_random_edid();
+                            let edid_value = RegValue {
+                                bytes: Cow::Borrowed(&edid),
+                                vtype: REG_BINARY,
+                            };
+
+                            if key.set_raw_value("EDID", &edid_value).is_ok() {
+                                info!("EDID spoofed | {} → {:?}", instance, &edid[8..12]);
+                                spoofed_count += 1;
+                            }
+                        }
+                    }
                 }
             }
         }
-    }
 
-    Ok(spoofed_count)
+        Ok(spoofed_count)
+    }
 }
 
 fn spoof_logged_in_users() -> Result<(), WIN32_ERROR> {
-    let login_path =
-        w!("Software\\Roblox\\RobloxStudio\\LoggedInUsersStore\\https:\\www.roblox.com");
-    let key = match RegKey::open_current_user(PCWSTR(login_path.as_ptr()), KEY_SET_VALUE) {
-        Ok(k) => k,
-        Err(e) => {
-            warn!("Cannot open registry key | {:?} → {:?}", login_path, e);
-            return Err(e);
-        }
-    };
+    let login_path = "Software\\Roblox\\RobloxStudio\\LoggedInUsersStore\\https:\\www.roblox.com";
+
+    let key =
+        match RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(login_path, KEY_SET_VALUE) {
+            Ok(k) => k,
+            Err(e) => {
+                warn!("Cannot open registry key | {:?} → {:?}", login_path, e);
+                return Err(WIN32_ERROR(e.raw_os_error().unwrap_or(1) as u32));
+            }
+        };
 
     // Roblox Studio uses this value in registry as a placeholder for
     // non logged in clients:
     // {"":{"username":"","profilePicUrl":""}};
     let place_holder = "{\"\":{\"username\":\"\",\"profilePicUrl\":\"\"}}";
-    let wide = place_holder
-        .encode_utf16()
-        .chain(Some(0))
-        .collect::<Vec<_>>();
-    let bytes = unsafe { std::slice::from_raw_parts(wide.as_ptr() as *const u8, wide.len() * 2) };
+    let mut wide: OsString = OsString::from(place_holder);
+    wide.push("\0"); // Add null terminator
 
-    if let Err(e) = key.set_value(w!("users"), REG_SZ, bytes) {
+    if let Err(e) = key.set_value("users", &wide) {
         warn!("Failed to set value | {:?} → {:?}", login_path, e);
-        return Err(e);
-    };
+        return Err(WIN32_ERROR(e.raw_os_error().unwrap_or(1) as u32));
+    }
 
     info!(
         "Logged in users spoofed | {}",
-        String::from_utf16_lossy(unsafe { login_path.as_wide() })
+        String::from_utf16_lossy(
+            &login_path
+                .encode_utf16()
+                .chain(Some(0)) // Add null terminator
+                .collect::<Vec<_>>()
+        )
     );
 
     // delete tracking keys
@@ -339,10 +425,11 @@ fn spoof_logged_in_users() -> Result<(), WIN32_ERROR> {
 
     let re_files = Regex::new(keys_to_delete[0]).unwrap();
     let re_api_games = Regex::new(keys_to_delete[1]).unwrap();
-    let base_path = w!("Software\\Roblox\\RobloxStudio");
-    let delete_key = match RegKey::open_current_user(
+    let base_path = "Software\\Roblox\\RobloxStudio";
+
+    let delete_key = match RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(
         base_path,
-        REG_SAM_FLAGS(KEY_QUERY_VALUE.0 | KEY_ENUMERATE_SUB_KEYS.0 | KEY_SET_VALUE.0 | DELETE.0),
+        KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_SET_VALUE | DELETE,
     ) {
         Ok(k) => k,
         Err(e) => {
@@ -350,44 +437,19 @@ fn spoof_logged_in_users() -> Result<(), WIN32_ERROR> {
                 "Cannot reopen registry key for deletion | {:?} → {:?}",
                 base_path, e
             );
-            return Err(e);
+            return Err(WIN32_ERROR(e.raw_os_error().unwrap_or(1) as u32));
         }
     };
 
-    let mut to_delete: Vec<String> = vec![];
-    let mut index = 0u32;
-    let mut name_buf = [0u16; 256];
-
-    loop {
-        let mut name_len = name_buf.len() as u32;
-        let ret = unsafe {
-            RegEnumKeyExW(
-                delete_key.0,
-                index,
-                Option::from(PWSTR(name_buf.as_mut_ptr())),
-                &mut name_len,
-                None,
-                Option::from(PWSTR::null()),
-                None,
-                None,
-            )
-        };
-
-        if ret != ERROR_SUCCESS {
-            break;
-        }
-
-        let name = String::from_utf16_lossy(&name_buf[..name_len as usize]);
-
-        let should_delete = re_files.is_match(&name)
-            || re_api_games.is_match(&name)
-            || keys_to_delete[2..].contains(&name.as_str());
+    let mut to_delete = Vec::new();
+    for subkey_name in delete_key.enum_keys().map(|x| x.unwrap()) {
+        let should_delete = re_files.is_match(&subkey_name)
+            || re_api_games.is_match(&subkey_name)
+            || keys_to_delete[2..].contains(&subkey_name.as_str());
 
         if should_delete {
-            to_delete.push(name);
+            to_delete.push(subkey_name);
         }
-
-        index += 1;
     }
 
     if to_delete.is_empty() {
@@ -396,12 +458,9 @@ fn spoof_logged_in_users() -> Result<(), WIN32_ERROR> {
     }
 
     for name in to_delete {
-        let wide_name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
-        let ret = unsafe { RegDeleteTreeW(delete_key.0, PCWSTR(wide_name.as_ptr())) };
-
-        match ret {
-            ERROR_SUCCESS => info!("Deleted registry key: {}", name),
-            e => warn!("Failed to delete key '{}': {:?}", name, e),
+        match delete_key.delete_subkey(&name) {
+            Ok(_) => info!("Deleted registry key: {}", name),
+            Err(e) => warn!("Failed to delete key '{}': {:?}", name, e),
         }
     }
 

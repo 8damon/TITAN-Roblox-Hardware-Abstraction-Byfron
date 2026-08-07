@@ -1,3 +1,4 @@
+use std::process::Command;
 use std::time::{Duration, Instant};
 
 use tracing::{info, warn};
@@ -278,4 +279,13 @@ fn sanitize_speed_bps(speed_bps: u64) -> Option<u64> {
     }
 
     Some(mbps)
+}
+
+pub fn flush_dns_cache() -> Result<bool, String> {
+    let output = Command::new("cmd")
+        .args(&["/C", "ipconfig /flushdns"])
+        .output()
+        .map_err(|e| format!("Command failed: {}", e))?;
+
+    Ok(output.status.success())
 }

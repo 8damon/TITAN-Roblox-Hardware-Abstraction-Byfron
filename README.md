@@ -58,8 +58,23 @@ For ``spoof_on_roblox_close`` to work, ``run_in_background`` must be ``true``, s
 
 All of these values have been found checked by Roblox's Anti-Tamper (Hyperion/Byfron)
 
+### BIOS (via `src/modules/hwid/bios.rs`)
+- **BIOS Serial** (System BIOS identifier)
+- **BIOS Version** (Firmware revision)
+- **BIOS Release Date** (Manufacturing date)
 
-### WMI (via `src/modules/WMI.rs`)
+---
+
+### Motherboard (via `src/modules/hwid/motherboard.rs`)
+- **System UUID** (Globally unique motherboard identifier)
+- **Baseboard Serial** (Manufacturer-assigned board serial)
+- **Manufacturer** (Motherboard vendor)
+- **Product** (Motherboard model)
+- **Version** (Hardware revision)
+
+---
+
+### WMI (via `src/modules/hwid/WMI.rs`)
 
 | Class                       | Property     |
 | --------------------------- | ------------ |
@@ -92,15 +107,6 @@ All of these values have been found checked by Roblox's Anti-Tamper (Hyperion/By
 
 ---
 
-### Network Adapter Identity (via `src/modules/adapters/*`)
-
-| Component      | Action                                             |
-| -------------- | -------------------------------------------------- |
-| Wired adapters | Sets `NetworkAddress`                              |
-| WiFi adapters  | Edits profile XML and applies via `WlanSetProfile` |
-
----
-
 ### Volume Serial Modification
 
 (via `src/modules/registry.rs` – `ArSpoofVolume`)
@@ -110,6 +116,17 @@ All of these values have been found checked by Roblox's Anti-Tamper (Hyperion/By
 | NTFS       | Writes new serial to volume boot sector |
 | FAT        | Writes new serial to volume boot sector |
 | FAT32      | Writes new serial to volume boot sector |
+
+---
+
+### Network Adapter Identity (via `src/modules/adapters/*`)
+
+| Component      | Action                                             |
+| -------------- | -------------------------------------------------- |
+| Wired adapters | Sets `NetworkAddress`                              |
+| WiFi adapters  | Edits profile XML and applies via `WlanSetProfile` |
+
+---
 
 </details>
 
