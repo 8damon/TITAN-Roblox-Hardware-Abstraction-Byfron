@@ -14,7 +14,7 @@ use windows::{
 
 use tracing::{error, info, warn};
 
-const AUMID: &str = "TITAN.Spoofer";
+const AUMID: &str = "RYFTENIUS.Spoofer";
 const TOAST_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug)]
@@ -54,7 +54,7 @@ fn show_toast() -> anyhow::Result<ToastResult> {
 <toast launch="action=spoof">
     <visual>
         <binding template="ToastGeneric">
-            <text>TITAN Spoofer</text>
+            <text>RYFTENIUS Spoofer</text>
             <text>Roblox has closed. Spoof hardware identifiers?</text>
         </binding>
     </visual>

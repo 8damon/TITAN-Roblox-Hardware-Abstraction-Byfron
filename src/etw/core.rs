@@ -91,7 +91,7 @@ impl RobloxEtwWatcher {
         seed_from_process_snapshot(&state);
         emit_state_transition(&state, true);
 
-        let session_name = "TITAN_ETW_ROBLOX".to_string();
+        let session_name = "RYFTENIUS_ETW_ROBLOX".to_string();
         debug!(%session_name, "Starting ETW session");
         let session = EtwSession::start(&session_name)?;
 

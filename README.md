@@ -5,20 +5,20 @@
   <img src="https://img.shields.io/badge/language-Rust-orange?logo=rust&style=for-the-badge" />
   <img src="https://img.shields.io/github/actions/workflow/status/8damon/Roblox-ARES-Spoofer-Byfron/ci.yml?label=CI&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Downloads-4K%2B-green?style=for-the-badge" />
-  <a href="https://titansoftwork.com">
-    <img src="https://img.shields.io/discord/1240608336005828668?label=TITAN%20Softworks&logo=discord&color=5865F2&style=for-the-badge" />
+  <a href="https://ryftenius.com">
+    <img src="https://img.shields.io/discord/1240608336005828668?label=RYFTENIUS%20Softworks&logo=discord&color=5865F2&style=for-the-badge" />
   </a>
 </p>
 
 ## INTRODUCTION
 
-> **ARES-RS** is a successor to the older C++ version of **TITAN-Spoofer**, RS implements many of the limitations of the C++ version, such as configurability, universal bootstrapper support, auto-updating & proper error handling and logging.
+> **ARES-RS** is a successor to the older C++ version of **RYFTENIUS-Spoofer**, RS implements many of the limitations of the C++ version, such as configurability, universal bootstrapper support, auto-updating & proper error handling and logging.
 
 # OVERVIEW
 
 ARES-RS is designed to protect your Main/Alt accounts from Byfron's account detection system's & Roblox's BanAsync component. To use this effectively, a VPN is heavily recomended.
 
-For a much more detailed guide, join the **[Discord](https://hub.titansoftwork.com)** and read the guide provided.
+For a much more detailed guide, join the **[Discord](https://hub.ryftenius.com)** and read the guide provided.
 
 ## HOW IT WORKS
 
@@ -134,7 +134,7 @@ All of these values have been found checked by Roblox's Anti-Tamper (Hyperion/By
 
 ## INSTALLATION
 
-For prebuilt binaries (.exe's) you can find them in the **[ARES Discord](https://hub.titansoftwork.com)**.
+For prebuilt binaries (.exe's) you can find them in the **[ARES Discord](https://hub.ryftenius.com)**.
 
 *PDB's are provided.*
 
@@ -211,7 +211,7 @@ For DLL integration docs (exports, structs, callback usage, and call flow), see:
 
 The Spoofer provides logs at ``%LOCALAPPDATA%\TSRS``, filter by modified-date & upload the relevant log file to said thread,
 
-Open a support thread via the **[TITAN Discord](https://hub.titansoftwork.com)**.
+Open a support thread via the **[RYFTENIUS Discord](https://hub.ryftenius.com)**.
 
 ## CONTRIBUTING
 
@@ -251,7 +251,7 @@ ARES Spoofer RS is licensed under Apache 2.0 with the Commons Clause.
 
 - You may use, modify, and redistribute the software with attribution.
 - You may **not Sell** the software or any service whose value derives substantially from it.
-- Commercial use is prohibited unless you obtain explicit written permission from ARES Softwork Solutions.
+- Commercial use is prohibited unless you obtain explicit written permission from RYFTENIUS.
 
 ## LEGAL
 This software is provided for **educational and research purposes only**. The use of this tool to **circumvent security protections** or violate the terms of service of **Roblox or any other platform** is strictly prohibited. The developers **do not endorse or condone** any illegal activities and assume no liability for misuse.

@@ -60,7 +60,7 @@ fn fetch_version() -> Result<String, Box<dyn std::error::Error>> {
     trace!("Requesting latest WindowsPlayer version metadata");
 
     let resp = ureq::get("https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer")
-        .header("User-Agent", "titan-rs-installer")
+        .header("User-Agent", "ryftenius-rs-installer")
         .call()?;
 
     debug!(status = ?resp.status(), "Version metadata HTTP response received");
@@ -83,7 +83,7 @@ fn download_installer(url: &str) -> Result<PathBuf, Box<dyn std::error::Error>> 
     info!(%url, "Downloading Roblox installer");
 
     let response = ureq::get(url)
-        .header("User-Agent", "titan-rs-installer")
+        .header("User-Agent", "ryftenius-rs-installer")
         .call()?;
 
     if !response.status().is_success() {

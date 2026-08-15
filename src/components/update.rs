@@ -56,7 +56,7 @@ pub fn ArCheckForUpdates(cfg: &ArConfig) -> io::Result<UpdateResult> {
     let staged_path = staged_exe_path(&exe_path);
     download_to_file(&asset.browser_download_url, &staged_path)?;
 
-    let cmd_path = exe_dir.join("titan_update.cmd");
+    let cmd_path = exe_dir.join("ryftenius_update.cmd");
     write_update_cmd(&cmd_path, &exe_path, &staged_path)?;
     launch_update_cmd(&cmd_path)?;
 
@@ -111,7 +111,7 @@ fn github_latest_release() -> Result<GithubRelease, io::Error> {
     let url = format!("https://api.github.com/repos/{repo_path}/releases/latest");
 
     let resp = ureq::get(&url)
-        .header("User-Agent", "titan-rs-updater")
+        .header("User-Agent", "ryftenius-rs-updater")
         .header("Accept", "application/vnd.github+json")
         .call()
         .map_err(|e| io::Error::other(e.to_string()))?;
@@ -160,14 +160,14 @@ fn staged_exe_path(current_exe: &Path) -> PathBuf {
     let stem = current_exe
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("titan");
+        .unwrap_or("ryftenius");
 
     dir.join(format!("{stem}.new.exe"))
 }
 
 fn download_to_file(url: &str, path: &Path) -> io::Result<()> {
     let resp = ureq::get(url)
-        .header("User-Agent", "titan-rs-updater")
+        .header("User-Agent", "ryftenius-rs-updater")
         .call()
         .map_err(|e| io::Error::other(e.to_string()))?;
 

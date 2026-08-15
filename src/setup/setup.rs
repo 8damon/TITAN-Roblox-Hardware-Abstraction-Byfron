@@ -19,7 +19,7 @@ const SETUP_ASCII_BANNER: &str = r#"
  ><<       ><< ><<    ><<  ><<      ><<    ><<     ><<    ><<  ><<    ><<
 ><<         ><<><<      ><<><<<<<<<<  ><< <<       ><<      ><<  ><< <<  
                                                                          
-                    https://hub.titansoftwork.com
+                    https://hub.ryftenius.com
                                 v2.0.0
 "#;
 
